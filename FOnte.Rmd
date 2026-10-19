@@ -1,0 +1,100 @@
+---
+title: "Assigment 3"
+author: "Vincent Fonte"
+date: "2026-10-18"
+output: html_document
+---
+```{r}
+UniversalBank<-read.csv("UniversalBank (1).csv")
+dim(UniversalBank)
+```
+
+
+```{r}
+library(reshape2)
+library(e1071)
+```
+
+# data prep
+
+```{r}
+Bank <- data.frame(Loan = factor(UniversalBank$Personal.Loan),
+Online = factor(UniversalBank$Online),
+Creditcard = factor(UniversalBank$CreditCard))
+set.seed(1)
+
+idx <-sample(nrow(Bank), .6 * nrow(Bank))
+train <- Bank[idx, ]
+valid <-Bank[-idx, ]
+
+nrow(train)
+nrow(valid)
+table(train$Loan)
+```
+# pivot table
+```{r}
+train$count <- 1
+long <- melt(train, id.vars = c( "Creditcard", "Loan", "Online"), measure.vars  ="count")
+pivot <- dcast(long, Creditcard + Loan ~ Online, fun.aggregate = sum)
+pivot
+
+```
+
+# P(loan= 1 | creditcard = 1, Online=1) pivot tables
+
+```{r}
+t3 <- xtabs(~Creditcard +Loan + Online, data= train)
+t3
+
+p_8 <- t3["1","1", "1"]/(t3["1","1", "1"] + t3["1","0", "1"])
+p_8
+```
+
+#about 9.1% of customers accept these loans
+#2 pivot table
+```{r}
+tabonline<- xtabs(~Loan + Online, data= train)
+tab_ccc<- xtabs(~Loan +Creditcard,  data=train)
+
+tabonline
+tab_ccc
+```
+# Quantites
+```{r}
+n1<- sum(train$Loan == "1")
+m0 <-sum(train$Loan == "0")
+pcc <- tab_ccc["1", "1"] / n1
+ponline <-tabonline["1", "1"] / n1
+p1 <-n1 / nrow(train)
+p_cc <-tab_ccc["0", "1"] /m0
+pponline <-tabonline["0","1"] /m0
+p <- m0 / nrow(train)
+
+data.frame(quantity= c("P(CC=1|Loan=1)", "P(Online=1|Loan=1)", "P(Loan=1)",
+                        "P(CC=1|Loan=0)", "P(Online=1|Loan=0)", "P(Loan=0)"),
+         value = round(c(pcc,ponline,p1,p_cc,pponline,p), 4))
+```
+
+```{r}
+num<- pcc * ponline * p1
+den <- num + p_cc * pponline * p
+p_Z <- num /den
+p_Z
+```
+# .09055758
+```{r}
+newB<-naiveBayes(Loan ~ Online + Creditcard, data= train)
+newB
+predict(newB,
+        newdata = data.frame(Online = factor("1", levels = c("0", "1")),
+        Creditcard =factor("1", levels = c("0", "1"))),
+        type ="raw")
+```
+# pivot table had a 9.1% and naive had a .09055.Meaning they are alomost identical and those the pivot table is an exaclty taken from all the data wear as the naive Bayes is a n approximation using 2 data sets
+
+
+#TWhich of the entries in this table are needed for computing This gives .09055 and from early we got 09055758 meaning the data was run correctly and comapres
+```{r}
+c(pivot_table_B = unname(p_8), naive_bayes_e = unname(p_Z))
+
+```
